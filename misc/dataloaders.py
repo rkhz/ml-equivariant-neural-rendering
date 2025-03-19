@@ -2,8 +2,8 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from eqr.utils.data import SceneRenderDataset
-from eqr.utils.data import RandomPairSampler
+from eqnr.utils.data import SceneRenderDataset
+from eqnr.utils.data import RandomPairSampler
 
 
 def scene_render_dataloader(path_to_data='chairs-train', batch_size=16,

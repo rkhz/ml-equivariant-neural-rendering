@@ -1,5 +1,5 @@
 import torch.nn as nn
-from eqr.nn.functional import rotate3d, rotate_source_to_target
+from eqnr.nn.functional import rotate3d, rotate_source_to_target
 
 
 class Rotate3d(nn.Module):

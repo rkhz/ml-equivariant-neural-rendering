@@ -1,4 +1,4 @@
-from eqr.nn import ResBlock2d, ResBlock3d
+from eqnr.nn import ResBlock2d, ResBlock3d
 import models.submodels
 import torch
 from math import pi
