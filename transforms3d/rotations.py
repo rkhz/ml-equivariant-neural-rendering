@@ -1,9 +1,14 @@
 import torch
-from transforms3d.conversions import (rotation_matrix_source_to_target,
-                                      transpose_matrix)
+import torch.nn.functional as F
+from typing import List
 
+from transforms3d.conversions import _rotation_matrix_source_to_target
 
-def rotate(volume, rotation_matrix, mode='bilinear'):
+def rotate3d(
+    volume: torch.Tensor,
+    rotation_matrix: torch.Tensor, 
+    mode: str = 'bilinear'
+)-> torch.Tensor:
     """Performs 3D rotation of tensor volume by rotation matrix.
 
     Args:
@@ -18,25 +23,40 @@ def rotate(volume, rotation_matrix, mode='bilinear'):
         We use align_corners=False in grid_sample. See
         https://discuss.pytorch.org/t/what-we-should-use-align-corners-false/22663/9
         for a nice illustration of why this is.
+        
+        The grid_sample function performs the inverse transformation of the input
+        coordinates, so invert (ie.e transpose) matrix to get forward transformation:
+            - rotation_matrix.transpose(1, 2)
+        
+        The grid_sample function swaps x and z (i.e. it assumes the tensor
+        dimensions are ordered as z, y, x), therefore we need to flip the rows and
+        columns of the matrix (which we can verify is equivalent to multiplying by
+        the appropriate permutation matrices):
+            -  torch.flip(rotation_matrix.transpose(1, 2), dims=(1, 2))
+            
+        We use align_corners=False in affine_grid and grid_sample. For a nice illustration of why this is, see:
+            https://discuss.pytorch.org/t/what-we-should-use-align-corners-false/22663/9
     """
-    # The grid_sample function performs the inverse transformation of the input
-    # coordinates, so invert matrix to get forward transformation
-    inverse_rotation_matrix = transpose_matrix(rotation_matrix)
-    # The grid_sample function swaps x and z (i.e. it assumes the tensor
-    # dimensions are ordered as z, y, x), therefore we need to flip the rows and
-    # columns of the matrix (which we can verify is equivalent to multiplying by
-    # the appropriate permutation matrices)
-    inverse_rotation_matrix_swap_xz = torch.flip(inverse_rotation_matrix,
-                                                 dims=(1, 2))
-    # Apply transformation to grid
-    affine_grid = get_affine_grid(inverse_rotation_matrix_swap_xz, volume.shape)
-    # Regrid volume according to transformation grid
-    return torch.nn.functional.grid_sample(volume, affine_grid, mode=mode,
-                                           align_corners=False)
+    inverse_rotation_matrix_swap_xz = torch.flip(
+        rotation_matrix.transpose(1, 2), 
+        dims=(1, 2)
+    )
+    
+    # Apply transformation to grid      
+    affine_grid = _get_affine_grid(
+        inverse_rotation_matrix_swap_xz, 
+        volume.shape
+    )
+    
+    return F.grid_sample(volume, affine_grid, mode=mode, align_corners=False)
 
 
-def get_affine_grid(matrix, grid_shape):
-    """Given a matrix and a grid shape, returns the grid transformed by the
+def _get_affine_grid(
+    matrix: torch.Tensor, 
+    grid_shape: List[int]
+) -> torch.Tensor:
+    """
+    Given a matrix and a grid shape, returns the grid transformed by the
     matrix (typically a rotation matrix).
 
     Args:
@@ -49,18 +69,21 @@ def get_affine_grid(matrix, grid_shape):
         https://discuss.pytorch.org/t/what-we-should-use-align-corners-false/22663/9
         for a nice illustration of why this is.
     """
-    batch_size = matrix.shape[0]
-    # Last column of affine matrix corresponds to translation which is 0 in our
-    # case. Therefore pad original matrix with zeros, so shape changes from
-    # (batch_size, 3, 3) to (batch_size, 3, 4)
-    translations = torch.zeros(batch_size, 3, 1, device=matrix.device)
-    affine_matrix = torch.cat([matrix, translations], dim=2)
-    return torch.nn.functional.affine_grid(affine_matrix, grid_shape,
-                                           align_corners=False)
+    affine_matrix = F.pad(
+        input=matrix, 
+        pad=(0, 1, 0, 0), 
+        value=0, mode='constant'
+    )
+    
+    return F.affine_grid(affine_matrix, grid_shape, align_corners=False)
 
 
-def rotate_source_to_target(volume, azimuth_source, elevation_source,
-                            azimuth_target, elevation_target, mode='bilinear'):
+def rotate_source_to_target(
+    volume: torch.Tensor, 
+    azimuth_source: torch.Tensor, elevation_source: torch.Tensor,
+    azimuth_target: torch.Tensor, elevation_target: torch.Tensor, 
+    mode: str = 'bilinear'
+)-> torch.Tensor:
     """Performs 3D rotation matching two coordinate frames defined by a source
     view and a target view.
 
@@ -75,8 +98,7 @@ def rotate_source_to_target(volume, azimuth_source, elevation_source,
         elevation_target (torch.Tensor): Shape (batch_size,). Elevation of
             target view in degrees.
     """
-    rotation_matrix = rotation_matrix_source_to_target(azimuth_source,
-                                                       elevation_source,
-                                                       azimuth_target,
-                                                       elevation_target)
-    return rotate(volume, rotation_matrix, mode=mode)
+    rotation_matrix = _rotation_matrix_source_to_target(azimuth_source, elevation_source,
+                                                        azimuth_target, elevation_target)
+    return rotate3d(volume, rotation_matrix, mode=mode)
+

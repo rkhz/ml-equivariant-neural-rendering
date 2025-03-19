@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transforms3d.rotations import rotate, rotate_source_to_target
+from transforms3d.rotations import rotate3d, rotate_source_to_target
 
 
 class Rotate3d(nn.Module):
@@ -22,7 +22,7 @@ class Rotate3d(nn.Module):
             rotation_matrix (torch.Tensor): Batch of rotation matrices of shape
                 (batch_size, 3, 3).
         """
-        return rotate(volume, rotation_matrix, mode=self.mode)
+        return rotate3d(volume, rotation_matrix, mode=self.mode)
 
     def rotate_source_to_target(self, volume, azimuth_source, elevation_source,
                                 azimuth_target, elevation_target):

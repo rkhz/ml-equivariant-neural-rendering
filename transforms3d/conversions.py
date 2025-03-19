@@ -1,57 +1,65 @@
 import torch
-from math import pi
+from typing import Union
 
-
-def deg2rad(angles):
-    return angles * pi / 180.
-
-
-def rad2deg(angles):
-    return angles * 180. / pi
-
-
-def rotation_matrix_y(angle):
-    """Returns rotation matrix about y-axis.
-
-    Args:
-        angle (torch.Tensor): Rotation angle in degrees. Shape (batch_size,).
+def _rotation_matrix_y(
+    angle_degrees: Union[torch.Tensor, float]
+) -> torch.Tensor:
     """
-    # Initialize rotation matrix
-    rotation_matrix = torch.zeros(angle.shape[0], 3, 3, device=angle.device)
-    # Fill out matrix entries
-    angle_rad = deg2rad(angle)
-    cos_angle = torch.cos(angle_rad)
-    sin_angle = torch.sin(angle_rad)
-    rotation_matrix[:, 0, 0] = cos_angle
-    rotation_matrix[:, 0, 2] = sin_angle
-    rotation_matrix[:, 1, 1] = 1.
-    rotation_matrix[:, 2, 0] = -sin_angle
-    rotation_matrix[:, 2, 2] = cos_angle
+    Create a 3D rotation matrix for rotation around the Y-axis.
+    
+    Args:
+        angle_degrees (torch.Tensor or float): Angle(s) in degrees of shape (batch_size,) or (1,).
+        
+    Returns:
+        torch.Tensor: A rotation matrix of shape (batch_size, 3, 3) or (1, 3, 3).
+    """
+    angle = torch.deg2rad(angle_degrees)
+    
+    cos_ = torch.cos(angle)
+    sin_ = torch.sin(angle)
+    
+    rotation_matrix = torch.zeros((*angle.shape, 3, 3), dtype=torch.float32, device=angle.device)
+
+    rotation_matrix[:, 0, 0] =  cos_
+    rotation_matrix[:, 0, 2] =  sin_
+    rotation_matrix[:, 1, 1] =  1.0
+    rotation_matrix[:, 2, 0] = -sin_
+    rotation_matrix[:, 2, 2] =  cos_
     return rotation_matrix
 
 
-def rotation_matrix_z(angle):
-    """Returns rotation matrix about z-axis.
-
-    Args:
-        angle (torch.Tensor): Rotation angle in degrees. Shape (batch_size,).
+def _rotation_matrix_z(
+    angle_degrees: Union[torch.Tensor, float]
+) -> torch.Tensor:
     """
-    # Initialize rotation matrix
-    rotation_matrix = torch.zeros(angle.shape[0], 3, 3, device=angle.device)
-    # Fill out matrix entries
-    angle_rad = deg2rad(angle)
-    cos_angle = torch.cos(angle_rad)
-    sin_angle = torch.sin(angle_rad)
-    rotation_matrix[:, 0, 0] = cos_angle
-    rotation_matrix[:, 0, 1] = -sin_angle
-    rotation_matrix[:, 1, 0] = sin_angle
-    rotation_matrix[:, 1, 1] = cos_angle
-    rotation_matrix[:, 2, 2] = 1.
+    Create a 3D rotation matrix for rotation around the Z-axis.
+    
+    Args:
+        angle_degrees (torch.Tensor or float): Angle(s) in degrees of shape (batch_size,) or (1,).
+        
+    Returns:
+        torch.Tensor: A rotation matrix of shape (batch_size, 3, 3) or (1, 3, 3).
+    """
+    angle = torch.deg2rad(angle_degrees)
+    
+    cos_ = torch.cos(angle)
+    sin_ = torch.sin(angle)
+    
+    rotation_matrix = torch.zeros((*angle.shape, 3, 3), dtype=torch.float32, device=angle.device)
+    rotation_matrix[:, 0, 0] =  cos_
+    rotation_matrix[:, 0, 1] = -sin_
+    rotation_matrix[:, 1, 0] =  sin_
+    rotation_matrix[:, 1, 1] =  cos_
+    rotation_matrix[:, 2, 2] =  1.0
     return rotation_matrix
 
 
-def azimuth_elevation_to_rotation_matrix(azimuth, elevation):
-    """Returns rotation matrix matching the default view (i.e. both azimuth and
+def _rotation_matrix_camera_to_world(
+    azimuth: torch.Tensor, 
+    elevation: torch.Tensor
+) -> torch.Tensor:
+    """
+    Returns rotation matrix matching the default view (i.e. both azimuth and
     elevation are zero) to the view defined by the azimuth, elevation pair.
 
 
@@ -65,21 +73,25 @@ def azimuth_elevation_to_rotation_matrix(azimuth, elevation):
         The azimuth and elevation refer to the position of the camera. This
         function returns the rotation of the *scene representation*, i.e. the
         inverse of the camera transformation.
+
+        In the coordinate system defined, azimuth rotation corresponds to negative rotation 
+        about y axis and elevation rotation to a negative rotation about z axis.
+        
+        We first perform elevation rotation followed by azimuth when rotating camera.
+        Object rotation matrix is inverse (i.e. transpose) of the camera rotation matrix:
+            - rotation_matrix_camera = _rotation_matrix_y(-azimuth) @ _rotation_matrix_z(-elevation)
+            - rotation_matrix_world (object) = rotation_matrix_camera.transpose(1, 2) 
     """
-    # In the coordinate system we define (see README), azimuth rotation
-    # corresponds to negative rotation about y axis and elevation rotation to a
-    # negative rotation about z axis
-    azimuth_matrix = rotation_matrix_y(-azimuth)
-    elevation_matrix = rotation_matrix_z(-elevation)
-    # We first perform elevation rotation followed by azimuth when rotating camera
-    camera_matrix = azimuth_matrix @ elevation_matrix
-    # Object rotation matrix is inverse (i.e. transpose) of camera rotation matrix
-    return transpose_matrix(camera_matrix)
+    return (_rotation_matrix_y(-azimuth) @ _rotation_matrix_z(-elevation)).transpose(1, 2)
 
 
-def rotation_matrix_source_to_target(azimuth_source, elevation_source,
-                                     azimuth_target, elevation_target):
-    """Returns rotation matrix matching two views defined by azimuth, elevation
+
+def _rotation_matrix_source_to_target(
+    azimuth_source: torch.Tensor, elevation_source: torch.Tensor,
+    azimuth_target: torch.Tensor, elevation_target: torch.Tensor
+) -> torch.Tensor:
+    """
+    Returns rotation matrix matching two views defined by azimuth, elevation
     pairs.
 
     Args:
@@ -91,19 +103,10 @@ def rotation_matrix_source_to_target(azimuth_source, elevation_source,
             view in degrees.
         elevation_target (torch.Tensor): Shape (batch_size,). Elevation of
             target view in degrees.
+    Notes:
+        Calculate rotation matrix bringing source view to target view (note that
+        for rotation matrix, inverse is transpose)
     """
-    # Calculate rotation matrix for each view
-    rotation_source = azimuth_elevation_to_rotation_matrix(azimuth_source, elevation_source)
-    rotation_target = azimuth_elevation_to_rotation_matrix(azimuth_target, elevation_target)
-    # Calculate rotation matrix bringing source view to target view (note that
-    # for rotation matrix, inverse is transpose)
-    return rotation_target @ transpose_matrix(rotation_source)
-
-
-def transpose_matrix(matrix):
-    """Transposes a batch of matrices.
-
-    Args:
-        matrix (torch.Tensor): Batch of matrices of shape (batch_size, n, m).
-    """
-    return matrix.transpose(1, 2)
+    rotation_source = _rotation_matrix_camera_to_world(azimuth_source, elevation_source)
+    rotation_target = _rotation_matrix_camera_to_world(azimuth_target, elevation_target)
+    return rotation_target @ (rotation_source.transpose(1, 2))
