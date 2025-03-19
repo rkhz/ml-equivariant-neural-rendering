@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.layers import ResBlock2d, ResBlock3d, num_channels_to_num_groups
+from models.layers import ResBlock2d, ResBlock3d, _get_num_groups
 
 
 class ResNet2d(nn.Module):
@@ -71,7 +71,7 @@ class ResNet2d(nn.Module):
                 forward_layers.append(
                     ResBlock2d(in_channels,
                               [out_channels * multiplier1x1, out_channels * multiplier3x3],
-                               add_groupnorm=add_groupnorm)
+                               group_norm=add_groupnorm)
                 )
             if stride == 2:
                 forward_layers.append(
@@ -86,7 +86,7 @@ class ResNet2d(nn.Module):
 
             # Add non-linearity
             if stride == 2 or stride == -2:
-                forward_layers.append(nn.GroupNorm(num_channels_to_num_groups(out_channels), out_channels))
+                forward_layers.append(nn.GroupNorm(_get_num_groups(out_channels), out_channels))
                 forward_layers.append(nn.LeakyReLU(0.2, True))
 
             in_channels = out_channels
@@ -176,7 +176,7 @@ class ResNet3d(nn.Module):
                 forward_layers.append(
                     ResBlock3d(in_channels,
                               [out_channels * multiplier1x1, out_channels * multiplier3x3],
-                               add_groupnorm=add_groupnorm)
+                               group_norm=add_groupnorm)
                 )
             if stride == 2:
                 forward_layers.append(
@@ -191,7 +191,7 @@ class ResNet3d(nn.Module):
 
             # Add non-linearity
             if stride == 2 or stride == -2:
-                forward_layers.append(nn.GroupNorm(num_channels_to_num_groups(out_channels), out_channels))
+                forward_layers.append(nn.GroupNorm(_get_num_groups(out_channels), out_channels))
                 forward_layers.append(nn.LeakyReLU(0.2, True))
 
             in_channels = out_channels
@@ -246,7 +246,7 @@ class Projection(nn.Module):
             )
             # Add non linearites, except for last layer
             if i != num_layers - 1:
-                forward_layers.append(nn.GroupNorm(num_channels_to_num_groups(out_channels), out_channels))
+                forward_layers.append(nn.GroupNorm(_get_num_groups(out_channels), out_channels))
                 forward_layers.append(nn.LeakyReLU(0.2, True))
             in_channels = out_channels
         # Set up forward layers as model
@@ -299,7 +299,7 @@ class InverseProjection(nn.Module):
             )
             # Add non linearites, except for last layer
             if i != num_layers - 1:
-                forward_layers.append(nn.GroupNorm(num_channels_to_num_groups(out_channels), out_channels))
+                forward_layers.append(nn.GroupNorm(_get_num_groups(out_channels), out_channels))
                 forward_layers.append(nn.LeakyReLU(0.2, True))
             in_channels = out_channels
         # Set up forward layers as model
