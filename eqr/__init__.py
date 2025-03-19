@@ -1,1 +1,1 @@
-from . import nn
+import eqr.nn

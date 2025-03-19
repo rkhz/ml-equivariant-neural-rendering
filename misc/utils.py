@@ -1,4 +1,4 @@
-import models.layers
+from eqr.nn import ResBlock2d, ResBlock3d
 import models.submodels
 import torch
 from math import pi
@@ -104,7 +104,7 @@ def get_layers_info(model):
             elif layer.stride[0] == 2:
                 out_shape = (layer.out_channels, in_shape[1] * 2, in_shape[2] * 2)
             name = "ConvTr2D"
-        elif isinstance(layer, models.layers.ResBlock2d):
+        elif isinstance(layer, ResBlock2d):
             out_shape = in_shape
             name = "ResBlock2D"
         elif isinstance(layer, torch.nn.Conv3d):
@@ -119,7 +119,7 @@ def get_layers_info(model):
             elif layer.stride[0] == 2:
                 out_shape = (layer.out_channels, in_shape[1] * 2, in_shape[2] * 2, in_shape[3] * 2)
             name = "ConvTr3D"
-        elif isinstance(layer, models.layers.ResBlock3d):
+        elif isinstance(layer, ResBlock3d):
             out_shape = in_shape
             name = "ResBlock3D"
         else:

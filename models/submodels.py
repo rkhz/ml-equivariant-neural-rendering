@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from models.layers import ResBlock2d, ResBlock3d, _get_num_groups
+from eqr.nn.functional import _get_num_groups
+from eqr.nn import ResBlock2d, ResBlock3d
 
 
 class ResNet2d(nn.Module):
