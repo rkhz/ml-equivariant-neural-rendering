@@ -1,2 +1,4 @@
-import eqnr.nn
-import eqnr.utils
+from eqnr import nn
+from eqnr import utils
+
+__all__ = ['nn', 'utils']

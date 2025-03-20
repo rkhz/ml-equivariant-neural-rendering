@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from typing import Union
 
+__all__ = ['rotate3d', 'rotate_source_to_target']
 
 def rotate3d(
     volume: torch.Tensor,

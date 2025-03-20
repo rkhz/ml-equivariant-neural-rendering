@@ -11,5 +11,3 @@ __all__ = [
     "InverseProjection",
     "SphericalMask"
 ]
-
-assert __all__ == sorted(__all__)

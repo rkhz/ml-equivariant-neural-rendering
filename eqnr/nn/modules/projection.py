@@ -3,7 +3,7 @@ from eqnr.nn.functional import _get_num_groups
 
 __all__ = [
     "Projection",
-    "InverseProjection",
+    "InverseProjection"
 ]
 
 class Projection(nn.Module):

@@ -1,3 +1,3 @@
-from eqnr.utils.data import *
+from eqnr.utils import data
 
-
+__all__ = ['data']
