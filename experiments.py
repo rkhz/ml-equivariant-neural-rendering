@@ -3,9 +3,12 @@ import os
 import sys
 import time
 import torch
-from misc.dataloaders import scene_render_dataloader
+
 from models.neural_renderer import NeuralRenderer
-from training.training import Trainer
+
+from utils.trainer import Trainer
+from utils.dataloaders import scene_render_dataloader
+from utils.summary import print_model_info
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -40,7 +43,7 @@ model = NeuralRenderer(
     mode=config["mode"]
 )
 
-model.print_model_info()
+print_model_info(model)
 
 model = model.to(device)
 

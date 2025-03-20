@@ -6,8 +6,7 @@ from eqnr.utils.data import SceneRenderDataset
 from eqnr.utils.data import RandomPairSampler
 
 
-def scene_render_dataloader(path_to_data='chairs-train', batch_size=16,
-                            img_size=(3, 128, 128), crop_size=128):
+def scene_render_dataloader(path_to_data='chairs-train', batch_size=16, img_size=(3, 128, 128), crop_size=128):
     """Dataloader for scene render datasets. Returns scene renders in pairs,
     i.e. 1st and 2nd images are of some scene, 3rd and 4th are of some different
     scene and so on.
@@ -23,38 +22,16 @@ def scene_render_dataloader(path_to_data='chairs-train', batch_size=16,
     """
     assert batch_size % 2 == 0, "Batch size is {} but must be even".format(batch_size)
 
-    dataset = scene_render_dataset(path_to_data, img_size, crop_size)
-
-    sampler = RandomPairSampler(dataset)
-
-    return DataLoader(dataset, batch_size=batch_size, sampler=sampler,
-                      drop_last=True)
-
-
-def scene_render_dataset(path_to_data='chairs-train', img_size=(3, 128, 128),
-                         crop_size=128, allow_odd_num_imgs=False):
-    """Helper function for creating a scene render dataset.
-
-    Args:
-        path_to_data (string): Path to folder containing dataset.
-        img_size (tuple of ints): Size of output images.
-        crop_size (int): Size at which to center crop rendered images.
-        allow_odd_num_imgs (int): If True, allows datasets with an odd number
-            of views. Such a dataset cannot be used for training, since each
-            training iteration requires a *pair* of images. Datasets with an odd
-            number of images are used for PSNR calculations.
-    """
     img_transform = transforms.Compose([
         transforms.CenterCrop(crop_size),
         transforms.Resize(img_size[1:]),
         transforms.ToTensor()
     ])
+    
+    dataset = SceneRenderDataset(path_to_data=path_to_data, img_transform=img_transform, allow_odd_num_imgs=False)
+    sampler = RandomPairSampler(dataset)
 
-    dataset = SceneRenderDataset(path_to_data=path_to_data,
-                                 img_transform=img_transform,
-                                 allow_odd_num_imgs=allow_odd_num_imgs)
-
-    return dataset
+    return DataLoader(dataset, batch_size=batch_size, sampler=sampler, drop_last=True)
 
 
 def create_batch_from_data_list(data_list):

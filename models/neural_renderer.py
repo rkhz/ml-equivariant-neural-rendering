@@ -1,10 +1,8 @@
 import torch
 import torch.nn as nn
 
-from misc.utils import pretty_print_layers_info, count_parameters
-from models.submodels import ResNet2d, ResNet3d
-
 from eqnr.nn import SphericalMask, Rotate3d, InverseProjection, Projection
+from models.submodels import ResNet2d, ResNet3d
 
 
 class NeuralRenderer(nn.Module):
@@ -209,37 +207,7 @@ class NeuralRenderer(nn.Module):
         rendered = self.render(scenes_rotated)
 
         return imgs, rendered, scenes, scenes_rotated
-
-    def print_model_info(self):
-        """Prints detailed information about model, such as how input shape is
-        transformed to output shape and how many parameters are trained in each
-        block.
-        """
-        print("Forward renderer")
-        print("----------------\n")
-        pretty_print_layers_info(self.transform_3d, "3D Layers")
-        print("\n")
-        pretty_print_layers_info(self.projection, "Projection")
-        print("\n")
-        pretty_print_layers_info(self.transform_2d, "2D Layers")
-        print("\n")
-
-        print("Inverse renderer")
-        print("----------------\n")
-        pretty_print_layers_info(self.inv_transform_2d, "Inverse 2D Layers")
-        print("\n")
-        pretty_print_layers_info(self.inv_projection, "Inverse Projection")
-        print("\n")
-        pretty_print_layers_info(self.inv_transform_3d, "Inverse 3D Layers")
-        print("\n")
-
-        print("Scene Representation:")
-        print("\tShape: {}".format(self.scene_shape))
-        # Size of scene representation corresponds to non zero entries of
-        # spherical mask
-        print("\tSize: {}\n".format(int(self.spherical_mask.mask.sum().item())))
-
-        print("Number of parameters: {}\n".format(count_parameters(self)))
+    
 
     def get_model_config(self):
         """Returns the complete model configuration as a dict."""
@@ -266,29 +234,6 @@ class NeuralRenderer(nn.Module):
             "state_dict": self.state_dict()
         }, filename)
 
-
-def load_model(filename):
-    """Loads a NeuralRenderer model from saved model config and weights.
-
-    Args:
-        filename (string): Path where model was saved.
-    """
-    model_dict = torch.load(filename, map_location="cpu")
-    config = model_dict["config"]
-    # Initialize a model based on config
-    model = NeuralRenderer(
-        img_shape=config["img_shape"],
-        channels_2d=config["channels_2d"],
-        strides_2d=config["strides_2d"],
-        channels_3d=config["channels_3d"],
-        strides_3d=config["strides_3d"],
-        num_channels_inv_projection=config["num_channels_inv_projection"],
-        num_channels_projection=config["num_channels_projection"],
-        mode=config["mode"]
-    )
-    # Load weights into model
-    model.load_state_dict(model_dict["state_dict"])
-    return model
 
 
 def get_swapped_indices(length):

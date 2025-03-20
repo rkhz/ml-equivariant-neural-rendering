@@ -1,7 +1,10 @@
 import imageio
+import numpy as np
 import torch
 import torchvision
-from misc.dataloaders import create_batch_from_data_list
+from math import pi
+
+from utils.dataloaders import create_batch_from_data_list
 
 
 def generate_novel_views(model, img_source, azimuth_source, elevation_source,
@@ -23,24 +26,28 @@ def generate_novel_views(model, img_source, azimuth_source, elevation_source,
     # No need to calculate gradients
     with torch.no_grad():
         num_views = len(azimuth_shifts)
-        # Batchify image
         img_batch = img_source.unsqueeze(0)
-        # Infer scene
+        
+        # 1. Infer scene
         scenes = model.inverse_render(img_batch)
-        # Copy scene for each target view
-        scenes_batch = scenes.repeat(num_views, 1, 1, 1, 1)
-        # Batchify azimuth and elevation source
+        
+        # ---  Copy scene for each target view
+        scenes_batch = scenes.repeat(num_views, 1, 1, 1, 1) 
+        
+        # ---  Batchify azimuth and elevation source
         azimuth_source_batch = azimuth_source.repeat(num_views)
         elevation_source_batch = elevation_source.repeat(num_views)
-        # Calculate azimuth and elevation targets
+            
+        # ---  Calculate azimuth and elevation targets
         azimuth_target = azimuth_source_batch + azimuth_shifts
         elevation_target = elevation_source_batch + elevation_shifts
-        # Rotate scenes
+        
+        # 2. Rotate scenes
         rotated = model.rotate_source_to_target(scenes_batch, azimuth_source_batch,
                                                 elevation_source_batch,
                                                 azimuth_target, elevation_target)
-    # Render images
-    return model.render(rotated).detach()
+        # 3. Render images
+        return model.render(rotated).detach()
 
 
 def batch_generate_novel_views(model, imgs_source, azimuth_source,
@@ -226,3 +233,93 @@ def save_img_sequence_as_gif(img_sequence, filename, nrow=4):
         img_grid_sequence.append(img_grid)
     # Save gif
     imageio.mimwrite(filename, img_grid_sequence)
+
+
+class AngleSequence:
+    """A class for generating various angle sequences, primarily for animations and GIFs."""
+
+    @staticmethod
+    def full_rotation(num_steps):
+        """Returns a sequence of angles corresponding to a full 360 degree rotation.
+
+        Args:
+            num_steps (int): Number of steps in sequence.
+
+        Returns:
+            torch.Tensor: A sequence of angles in degrees.
+        """
+
+        sequence = np.linspace(0, 360, num_steps, endpoint=False)
+        return torch.from_numpy(sequence)
+
+    @staticmethod
+    def sinusoidal(num_steps, min_degree, max_degree):
+        """Returns a sequence of angles sinusoidally varying between min_degree and max_degree.
+
+        Args:
+            num_steps (int): Number of steps in sequence.
+            min_degree (float): Minimum angle value (in degrees).
+            max_degree (float): Maximum angle value (in degrees).
+
+        Returns:
+            torch.Tensor: A sequence of angles in degrees.
+        """
+        period = np.linspace(0, 2*pi , num_steps, endpoint=False)
+        period = torch.from_numpy(period)
+
+        return .5 * (min_degree + max_degree + (max_degree - min_degree) * torch.sin(period))
+
+    @staticmethod
+    def sin_squared(num_steps, start, end):
+        """Returns a sequence of angles increasing from start to end and back as the
+        sine squared function.
+
+        Args:
+            num_steps (int): Number of steps in sequence.
+            start (float): Angle at which to start (in degrees).
+            end (float): Angle at which to end (in degrees).
+
+        Returns:
+            torch.Tensor: A sequence of angles in degrees.
+        """
+        half_period = np.linspace(0, pi , num_steps, endpoint=False)
+        half_period = torch.from_numpy(half_period)
+
+        return start + (end - start) * torch.sin(half_period) ** 2
+
+    @staticmethod
+    def back_and_forth(num_steps, start, end):
+        """Returns a sequence of angles linearly increasing from start to end and back.
+
+        Args:
+            num_steps (int): Number of steps in sequence.
+            start (float): Angle at which to start (in degrees).
+            end (float): Angle at which to end (in degrees).
+
+        Returns:
+            torch.Tensor: A sequence of angles in degrees.
+        """
+        half_num_steps = int(num_steps / 2)
+        # Increase angle from start to end
+        first = np.linspace(start, end, half_num_steps, endpoint=False)
+        first = torch.from_numpy(first)
+
+        # Decrease angle from end to start
+        second = np.linspace(end, start, half_num_steps, endpoint=False)
+        second = torch.from_numpy(second)
+
+        return torch.cat([first, second], dim=0)
+
+
+    @staticmethod
+    def constant(num_steps, value=0.):
+        """Returns a sequence of constant angles.
+
+        Args:
+            num_steps (int): Number of steps in sequence.
+            value (float): Constant angle value.
+
+        Returns:
+            torch.Tensor: A sequence of angles in degrees.
+        """
+        return value * torch.ones(num_steps)
