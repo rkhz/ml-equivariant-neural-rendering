@@ -7,6 +7,7 @@ from math import pi
 from utils.dataloaders import create_batch_from_data_list
 
 
+# TO DO: remove that because the model handle that now
 def generate_novel_views(model, img_source, azimuth_source, elevation_source,
                          azimuth_shifts, elevation_shifts):
     """Generates novel views of an image by inferring its scene representation,
@@ -49,7 +50,7 @@ def generate_novel_views(model, img_source, azimuth_source, elevation_source,
         # 3. Render images
         return model.render(rotated).detach()
 
-
+# TO DO: remove that because the model handle that now
 def batch_generate_novel_views(model, imgs_source, azimuth_source,
                                elevation_source, azimuth_shifts,
                                elevation_shifts):
@@ -87,6 +88,7 @@ def batch_generate_novel_views(model, imgs_source, azimuth_source,
     return all_novel_views
 
 
+# TO DO: remove that because the model handle that now
 def dataset_novel_views(device, model, dataset, img_indices, azimuth_shifts,
                         elevation_shifts):
     """Helper function for generating novel views from specific images in a
@@ -116,7 +118,7 @@ def dataset_novel_views(device, model, dataset, img_indices, azimuth_shifts,
                                       elevation_source, azimuth_shifts,
                                       elevation_shifts)
 
-
+# TO DO: remove that because the model handle that now
 def shapenet_test_novel_views(device, model, dataset, source_scenes_idx=(0, 1, 2, 3),
                               source_img_idx_shift=64, subsample_target=5):
     """Helper function for generating novel views on an archimedean spiral for

@@ -38,6 +38,10 @@ def get_dataset_psnr(device, model, dataset, source_img_idx_shift=64,
     batches_per_scene = (num_imgs_per_scene - 1) // batch_size
     # Initialize psnr values
     psnrs = []
+    
+##########################################################################################################################################
+# TO DO: REMOVE ALL OF THIS 
+#        -> no need to loop here, just forward
     for i in range(num_scenes):
         # Extract source view
         source_img_idx = i * num_imgs_per_scene + source_img_idx_shift
@@ -66,11 +70,12 @@ def get_dataset_psnr(device, model, dataset, source_img_idx_shift=64,
                 azimuth_target = azimuth_target.to(device)
                 elevation_target = elevation_target.to(device)
                 # Rotate scene and render image
-                rotated = model.rotate_source_to_target(scenes, azimuth_source,
-                                                        elevation_source, azimuth_target,
-                                                        elevation_target)
+                rotated = model.rotation_layer(scenes, azimuth_source=azimuth_source, elevation_source=elevation_source, 
+                                                       azimuth_target=azimuth_target, elevation_target=elevation_target)
                 img_predicted = model.render(rotated).detach()
                 scene_psnr += get_psnr(img_predicted, img_target)
+##
+##########################################################################################################################################
                 data_list = []
                 num_points_in_batch = 0
 
@@ -80,7 +85,8 @@ def get_dataset_psnr(device, model, dataset, source_img_idx_shift=64,
                                                               num_scenes,
                                                               psnrs[-1],
                                                               torch.mean(torch.Tensor(psnrs))))
-
+    
+    
     return psnrs
 
 

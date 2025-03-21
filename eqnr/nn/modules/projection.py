@@ -1,5 +1,5 @@
 import torch.nn as nn
-from eqnr.nn.functional import _get_num_groups
+from eqnr.nn.functional import get_num_groups
 
 __all__ = [
     "Projection",
@@ -38,7 +38,7 @@ class Projection(nn.Module):
             )
             # Add non linearites, except for last layer
             if i != num_layers - 1:
-                forward_layers.append(nn.GroupNorm(_get_num_groups(out_channels), out_channels))
+                forward_layers.append(nn.GroupNorm(get_num_groups(out_channels), out_channels))
                 forward_layers.append(nn.LeakyReLU(0.2, True))
             in_channels = out_channels
         # Set up forward layers as model
@@ -91,7 +91,7 @@ class InverseProjection(nn.Module):
             )
             # Add non linearites, except for last layer
             if i != num_layers - 1:
-                forward_layers.append(nn.GroupNorm(_get_num_groups(out_channels), out_channels))
+                forward_layers.append(nn.GroupNorm(get_num_groups(out_channels), out_channels))
                 forward_layers.append(nn.LeakyReLU(0.2, True))
             in_channels = out_channels
         # Set up forward layers as model

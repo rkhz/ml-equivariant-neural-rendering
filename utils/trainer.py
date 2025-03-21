@@ -1,7 +1,6 @@
 import json
 import torch
 import torch.nn as nn
-from models.neural_renderer import get_swapped_indices
 from pytorch_msssim import SSIM
 from torchvision.utils import save_image
 
@@ -75,17 +74,18 @@ class Trainer():
             self.fixed_batch = batch
             # Render images before any training
             rendered = self._render_fixed_img()
-            save_image(rendered.cpu(),
-                       save_dir + "/imgs_gen_{}.png".format(str(0).zfill(3)), nrow=4)
+            save_image(rendered.cpu(), save_dir + "/imgs_gen_{}.png".format(str(0).zfill(3)), nrow=4)
 
         for epoch in range(epochs):
             print("\nEpoch {}".format(epoch + 1))
             self._train_epoch(dataloader)
+            
             # Update epoch loss history with mean loss over epoch
             for loss_type in self.recorded_losses:
                 self.epoch_loss_history[loss_type].append(
                     sum(self.loss_history[loss_type][-len(dataloader):]) / len(dataloader)
                 )
+                
             # Print epoch losses
             print("Mean epoch loss:")
             self._print_losses(epoch_loss=True)
@@ -94,14 +94,16 @@ class Trainer():
             if save_dir is not None:
                 # Save generated images
                 rendered = self._render_fixed_img()
-                save_image(rendered.cpu(),
-                           save_dir + "/imgs_gen_{}.png".format(str(epoch + 1).zfill(3)), nrow=4)
+                save_image(rendered.cpu(), save_dir + "/imgs_gen_{}.png".format(str(epoch + 1).zfill(3)), nrow=4)
+                
                 # Save losses
                 with open(save_dir + '/loss_history.json', 'w') as loss_file:
                     json.dump(self.loss_history, loss_file)
+                
                 # Save epoch losses
                 with open(save_dir + '/epoch_loss_history.json', 'w') as loss_file:
                     json.dump(self.epoch_loss_history, loss_file)
+                
                 # Save model
                 if (epoch + 1) % save_freq == 0:
                     if self.multi_gpu:
@@ -115,10 +117,12 @@ class Trainer():
                 self.val_loss_history["regression"].append(regression_loss)
                 self.val_loss_history["ssim"].append(ssim_loss)
                 self.val_loss_history["total"].append(total_loss)
+                
                 if save_dir is not None:
                     # Save validation losses
                     with open(save_dir + '/val_loss_history.json', 'w') as loss_file:
                         json.dump(self.val_loss_history, loss_file)
+                   
                     # If current validation loss is the lowest, save model as best
                     # model
                     if min(self.val_loss_history["total"]) == total_loss:
@@ -158,7 +162,13 @@ class Trainer():
             batch (dict): Batch of data as returned by a Dataloader for a
                 misc.dataloaders.SceneRenderDataset instance.
         """
-        imgs, rendered, scenes, scenes_rotated = self.model(batch)
+
+        imgs, rendered, scenes, scenes_rotated = self.model(
+            imgs=batch["img"].to(self.device), 
+            azimuth=batch["render_params"]["azimuth"].to(self.device), 
+            elevation=batch["render_params"]["elevation"].to(self.device)
+        )
+        
         self._optimizer_step(imgs, rendered)
 
     def _optimizer_step(self, imgs, rendered):
@@ -197,7 +207,12 @@ class Trainer():
         """Reconstructs fixed batch through neural renderer (by inferring
         scenes, rotating them and rerendering).
         """
-        _, rendered, _, _ = self.model(self.fixed_batch)
+        _, rendered, _, _ = self.model(
+            imgs=self.fixed_batch["img"].to(self.device), 
+            azimuth=self.fixed_batch["render_params"]["azimuth"].to(self.device), 
+            elevation=self.fixed_batch["render_params"]["elevation"].to(self.device)
+        )
+        
         return rendered
 
     def _print_losses(self, epoch_loss=False):

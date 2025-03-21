@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from eqnr.nn.functional import _get_num_groups
+from eqnr.nn.functional import get_num_groups
 
 
 class ResBlock2d(nn.Module):
@@ -65,7 +65,7 @@ class _ConvBlock(nn.Module):
         prev_in_channels = in_channels
         for i, out_channels in enumerate(num_filters + [in_channels]):
             if group_norm:
-                num_groups = _get_num_groups(prev_in_channels)
+                num_groups = get_num_groups(prev_in_channels)
                 layers.append(nn.GroupNorm(num_groups=num_groups, num_channels=prev_in_channels))
 
             layers.append(nn.LeakyReLU(0.2, True))

@@ -1,15 +1,16 @@
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as _F
 from typing import Union
 
-__all__ = ['rotate3d', 'rotate_source_to_target']
+__all__ = ['rotate3d']
 
 def rotate3d(
     volume: torch.Tensor,
     rotation_matrix: torch.Tensor, 
     mode: str = 'bilinear'
 )-> torch.Tensor:
-    """Performs 3D rotation of tensor volume by rotation matrix.
+    """
+    Performs 3D rotation of tensor volume by rotation matrix.
 
     Args:
         volume (torch.Tensor): Shape (batch_size, channels, depth, height, width).
@@ -37,46 +38,20 @@ def rotate3d(
         We use align_corners=False in affine_grid and grid_sample. For a nice illustration of why this is, see:
             https://discuss.pytorch.org/t/what-we-should-use-align-corners-false/22663/9
     """
-    affine_matrix = F.pad(
+    affine_matrix = _F.pad(
         input=rotation_matrix.mT.flip(dims=(1,2)), 
         pad=(0, 1, 0, 0), value=0, mode='constant'
     )
     
-    affine_grid = F.affine_grid(
+    affine_grid = _F.affine_grid(
         affine_matrix, 
-        volume.shape,
+        size=volume.shape,
         align_corners=False
     )
     
-    return F.grid_sample(volume, affine_grid, mode=mode, align_corners=False)
+    return _F.grid_sample(volume, affine_grid, mode=mode, align_corners=False)
 
-
-def rotate_source_to_target(
-    volume: torch.Tensor, 
-    azimuth_source: torch.Tensor, elevation_source: torch.Tensor,
-    azimuth_target: torch.Tensor, elevation_target: torch.Tensor, 
-    mode: str = 'bilinear'
-)-> torch.Tensor:
-    """Performs 3D rotation matching two coordinate frames defined by a source
-    view and a target view.
-
-    Args:
-        volume (torch.Tensor): Shape (batch_size, channels, depth, height, width).
-        azimuth_source (torch.Tensor): Shape (batch_size,). Azimuth of source
-            view in degrees.
-        elevation_source (torch.Tensor): Shape (batch_size,). Elevation of
-            source view in degrees.
-        azimuth_target (torch.Tensor): Shape (batch_size,). Azimuth of target
-            view in degrees.
-        elevation_target (torch.Tensor): Shape (batch_size,). Elevation of
-            target view in degrees.
-    """
-    rotation_matrix = _rotation_matrix_source_to_target(azimuth_source, elevation_source,
-                                                        azimuth_target, elevation_target)
-    return rotate3d(volume, rotation_matrix, mode=mode)
-
-
-def _rotation_matrix_source_to_target(
+def rotation_matrix_source_to_target(
     azimuth_source: torch.Tensor, elevation_source: torch.Tensor,
     azimuth_target: torch.Tensor, elevation_target: torch.Tensor
 ) -> torch.Tensor:
@@ -96,6 +71,9 @@ def _rotation_matrix_source_to_target(
     Notes:
         Calculate rotation matrix bringing source view to target view (note that
         for rotation matrix, inverse is transpose)
+        
+        When generating new views in evaluation mode (azimuth_source.shape[0] != azimuth_target.shape[0]),
+        the rotation matrix is automatically braodcasted
     """
     rotation_source = _rotation_matrix_camera_to_world(azimuth_source, elevation_source)
     rotation_target = _rotation_matrix_camera_to_world(azimuth_target, elevation_target)
@@ -186,7 +164,7 @@ def _rotation_matrix_z(
     return rotation_matrix
 
 
-def _get_num_groups(
+def get_num_groups(
     num_channels: int
     ) -> int:
     """Returns number of groups to use in a GroupNorm layer with a given number

@@ -121,94 +121,14 @@ class NeuralRenderer(nn.Module):
         # Ensure scene is spherical
         return self.spherical_mask(scene)
 
-    def rotate(self, scene, rotation_matrix):
-        """Rotates scene by rotation matrix.
 
-        Args:
-            scene (torch.Tensor): Shape (batch_size, channels, depth, height, width).
-            rotation_matrix (torch.Tensor): Batch of rotation matrices of shape
-                (batch_size, 3, 3).
-        """
-        return self.rotation_layer(scene, rotation_matrix)
-
-    def rotate_source_to_target(self, scene, azimuth_source, elevation_source,
-                                azimuth_target, elevation_target):
-        """Assuming the scene is being observed by a camera at
-        (azimuth_source, elevation_source), rotates scene so camera is observing
-        it at (azimuth_target, elevation_target).
-
-        Args:
-            scene (torch.Tensor): Shape (batch_size, channels, depth, height, width).
-            azimuth_source (torch.Tensor): Shape (batch_size,). Azimuth of source.
-            elevation_source (torch.Tensor): Shape (batch_size,). Elevation of source.
-            azimuth_target (torch.Tensor): Shape (batch_size,). Azimuth of target.
-            elevation_target (torch.Tensor): Shape (batch_size,). Elevation of target.
-        """
-        return self.rotation_layer.rotate_source_to_target(scene,
-                                                           azimuth_source,
-                                                           elevation_source,
-                                                           azimuth_target,
-                                                           elevation_target)
-
-    def forward(self, batch):
-        """Given a batch of images and poses, infers scene representations,
-        rotates them into target poses and renders them into images.
-
-        Args:
-            batch (dict): A batch of images and poses as returned by
-                misc.dataloaders.scene_render_dataloader.
-
-        Notes:
-            This *must* be a batch as returned by the scene render dataloader,
-            i.e. the batch must be composed of pairs of images of the same
-            scene. Specifically, the first time in the batch should be an image
-            of scene A and the second item in the batch should be an image of
-            scene A observed from a different pose. The third item should be an
-            image of scene B and the fourth item should be an image scene B
-            observed from a different pose (and so on).
-        """
-        # Slightly hacky way of extracting model device. Device on which
-        # spherical is stored is the one where model is too
-        device = self.spherical_mask.mask.device
-        imgs = batch["img"].to(device)
-        params = batch["render_params"]
-        azimuth = params["azimuth"].to(device)
-        elevation = params["elevation"].to(device)
-
-        # Infer scenes from images
+    def forward(self, imgs, **kwargs):
         scenes = self.inverse_render(imgs)
-
-        # Rotate scenes so that for every pair of rendered images, the 1st
-        # one will be reconstructed as the 2nd and then 2nd will be
-        # reconstructed as the 1st
-        swapped_idx = get_swapped_indices(azimuth.shape[0])
-
-        # Each pair of indices in the azimuth vector corresponds to the same
-        # scene at two different angles. Therefore performing a pairwise swap,
-        # the first index will correspond to the second index in the original
-        # vector. Since we want to rotate camera angle 1 to camera angle 2 and
-        # vice versa, we can use these swapped angles to define a target
-        # position for the camera
-        azimuth_swapped = azimuth[swapped_idx]
-        elevation_swapped = elevation[swapped_idx]
-        scenes_swapped = \
-            self.rotate_source_to_target(scenes, azimuth, elevation,
-                                         azimuth_swapped, elevation_swapped)
-
-        # Swap scenes, so rotated scenes match with original inferred scene.
-        # Specifically, we have images x1, x2 from which we inferred the scenes
-        # z1, z2. We then rotated these scenes into z1' and z2'. Now z1' should
-        # be almost equal to z2 and z2' should be almost equal to z1, so we swap
-        # the order of z1', z2' to z2', z1' so we can easily render them to
-        # x1 and x2.
-        scenes_rotated = scenes_swapped[swapped_idx]
-
-        # Render scene using model
+        scenes_rotated = self.rotation_layer(scenes, **kwargs)
         rendered = self.render(scenes_rotated)
-
         return imgs, rendered, scenes, scenes_rotated
     
-
+ 
     def get_model_config(self):
         """Returns the complete model configuration as a dict."""
         return {
@@ -233,14 +153,3 @@ class NeuralRenderer(nn.Module):
             "config": self.get_model_config(),
             "state_dict": self.state_dict()
         }, filename)
-
-
-
-def get_swapped_indices(length):
-    """Returns a list of swapped index pairs. For example, if length = 6, then
-    function returns [1, 0, 3, 2, 5, 4], i.e. every index pair is swapped.
-
-    Args:
-        length (int): Length of swapped indices.
-    """
-    return [i + 1 if i % 2 == 0 else i - 1 for i in range(length)]

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from eqnr.nn.functional import _get_num_groups
+from eqnr.nn.functional import get_num_groups
 from eqnr.nn import ResBlock2d, ResBlock3d
 
 
@@ -87,7 +87,7 @@ class ResNet2d(nn.Module):
 
             # Add non-linearity
             if stride == 2 or stride == -2:
-                forward_layers.append(nn.GroupNorm(_get_num_groups(out_channels), out_channels))
+                forward_layers.append(nn.GroupNorm(get_num_groups(out_channels), out_channels))
                 forward_layers.append(nn.LeakyReLU(0.2, True))
 
             in_channels = out_channels
@@ -192,7 +192,7 @@ class ResNet3d(nn.Module):
 
             # Add non-linearity
             if stride == 2 or stride == -2:
-                forward_layers.append(nn.GroupNorm(_get_num_groups(out_channels), out_channels))
+                forward_layers.append(nn.GroupNorm(get_num_groups(out_channels), out_channels))
                 forward_layers.append(nn.LeakyReLU(0.2, True))
 
             in_channels = out_channels
