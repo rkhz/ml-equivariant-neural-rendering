@@ -3,7 +3,6 @@ import torch.nn as nn
 from eqnr.nn.functional import get_num_groups
 from eqnr.nn import ResBlock2d, ResBlock3d
 
-
 class ResNet2d(nn.Module):
     """ResNets for 2d inputs.
 
@@ -41,29 +40,12 @@ class ResNet2d(nn.Module):
         self.add_groupnorm = add_groupnorm
 
         # Calculate output_shape:
-        # Every layer with stride 2 divides the height and width by 2.
-        # Similarly, every layer with stride -2 multiplies the height and width
-        # by 2
-        output_channels, output_height, output_width = input_shape
+        self.output_shape = self._get_output_shape()
 
-        for stride in strides:
-            if stride == 1:
-                pass
-            elif stride == 2:
-                output_height //= 2
-                output_width //= 2
-            elif stride == -2:
-                output_height *= 2
-                output_width *= 2
-
-        self.output_shape = (channels[-1], output_height, output_width)
-
-        # Build layers
-        # First layer to increase number of channels before applying residual
-        # layers
+        # Build layers:
+        #--- First layer to increase number of channels before applying residual layers
         forward_layers = [
-            nn.Conv2d(self.input_shape[0], channels[0], kernel_size=1,
-                      stride=1, padding=0)
+            nn.Conv2d(self.input_shape[0], channels[0], kernel_size=1, stride=1, padding=0)
         ]
         in_channels = channels[0]
         multiplier1x1, multiplier3x3 = filter_multipliers
@@ -76,13 +58,11 @@ class ResNet2d(nn.Module):
                 )
             if stride == 2:
                 forward_layers.append(
-                    nn.Conv2d(in_channels, out_channels, kernel_size=4,
-                              stride=2, padding=1)
+                    nn.Conv2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1)
                 )
             if stride == -2:
                 forward_layers.append(
-                    nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4,
-                              stride=2, padding=1)
+                    nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1)
                 )
 
             # Add non-linearity
@@ -94,8 +74,7 @@ class ResNet2d(nn.Module):
 
         if final_conv_channels:
             forward_layers.append(
-                nn.Conv2d(in_channels, final_conv_channels, kernel_size=1,
-                          stride=1, padding=0)
+                nn.Conv2d(in_channels, final_conv_channels, kernel_size=1, stride=1, padding=0)
             )
 
         self.forward_layers = nn.Sequential(*forward_layers)
@@ -108,7 +87,38 @@ class ResNet2d(nn.Module):
                 channels, height, width).
         """
         return self.forward_layers(inputs)
-
+    
+    
+    def _get_output_shape(self):
+        """
+        Calculate the output shape of the convolution layer based on input shape and strides.
+        
+        This method handles both standard convolutions (positive strides) and 
+        transposed convolutions (negative strides):
+        
+        - Standard convolutions (stride > 1): Reduces spatial dimensions
+        - No change (stride = 1): Maintains spatial dimensions
+        - Transposed convolutions (stride < 0): Increases spatial dimensions
+        
+        Returns:
+            tuple: (output_channels, output_height, output_width)
+        """
+        stride_ = torch.tensor(self.strides, dtype=torch.int32)
+        input_height, input_width = self.input_shape[1:]
+        
+        # Compute stride adjustment factor
+        # Examples: stride 1 -> 0, stride 2 -> 1, stride -2 -> -1
+        stride_adjustment = stride_ - stride_.sign()
+        
+        # Calculate dimension multiplier based on stride adjustment
+        # Examples: stride 2 -> 1/2 (downsampling), stride -2 -> 2 (upsampling)
+        dim_multiplier = 2.0 ** (-stride_adjustment.sum().item())
+        
+        output_channels = self.channels[-1]
+        output_height = int(dim_multiplier * input_height)
+        output_width = int(dim_multiplier * input_width)
+        
+        return (output_channels, output_height, output_width)
 
 class ResNet3d(nn.Module):
     """ResNets for 3d inputs.
@@ -146,29 +156,13 @@ class ResNet3d(nn.Module):
         self.filter_multipliers = filter_multipliers
         self.add_groupnorm = add_groupnorm
 
-        # Calculate output_shape
-        output_channels, output_depth, output_height, output_width = input_shape
+        # Calculate output_shape:
+        self.output_shape = self._get_output_shape()
 
-        for stride in strides:
-            if stride == 1:
-                pass
-            elif stride == 2:
-                output_depth //= 2
-                output_height //= 2
-                output_width //= 2
-            elif stride == -2:
-                output_depth *= 2
-                output_height *= 2
-                output_width *= 2
-
-        self.output_shape = (channels[-1], output_depth, output_height, output_width)
-
-        # Build layers
-        # First layer to increase number of channels before applying residual
-        # layers
+        # Build layers:
+        #--- First layer to increase number of channels before applying residual layers
         forward_layers = [
-            nn.Conv3d(self.input_shape[0], channels[0], kernel_size=1,
-                      stride=1, padding=0)
+            nn.Conv3d(self.input_shape[0], channels[0], kernel_size=1, stride=1, padding=0)
         ]
         in_channels = channels[0]
         multiplier1x1, multiplier3x3 = filter_multipliers
@@ -181,13 +175,11 @@ class ResNet3d(nn.Module):
                 )
             if stride == 2:
                 forward_layers.append(
-                    nn.Conv3d(in_channels, out_channels, kernel_size=4,
-                              stride=2, padding=1)
+                    nn.Conv3d(in_channels, out_channels, kernel_size=4, stride=2, padding=1)
                 )
             if stride == -2:
                 forward_layers.append(
-                    nn.ConvTranspose3d(in_channels, out_channels, kernel_size=4,
-                              stride=2, padding=1)
+                    nn.ConvTranspose3d(in_channels, out_channels, kernel_size=4, stride=2, padding=1)
                 )
 
             # Add non-linearity
@@ -199,8 +191,7 @@ class ResNet3d(nn.Module):
 
         if final_conv_channels:
             forward_layers.append(
-                nn.Conv3d(in_channels, final_conv_channels, kernel_size=1,
-                          stride=1, padding=0)
+                nn.Conv3d(in_channels, final_conv_channels, kernel_size=1, stride=1, padding=0)
             )
 
         self.forward_layers = nn.Sequential(*forward_layers)
@@ -213,5 +204,36 @@ class ResNet3d(nn.Module):
                 depth, height, width).
         """
         return self.forward_layers(inputs)
-
+    
+    def _get_output_shape(self):
+        """
+        Calculate the output shape of the 3D convolution layer based on input shape and strides.
+        
+        This method handles both standard 3D convolutions (positive strides) and 
+        transposed 3D convolutions (negative strides):
+        
+        - Standard convolutions (stride > 1): Reduces spatial dimensions
+        - No change (stride = 1): Maintains spatial dimensions
+        - Transposed convolutions (stride < 0): Increases spatial dimensions
+        
+        Returns:
+            tuple: (output_channels, output_depth, output_height, output_width)
+        """
+        stride_ = torch.tensor(self.strides, dtype=torch.int32)
+        input_depth, input_height, input_width = self.input_shape[1:]
+        
+        # Compute stride adjustment factor
+        # Examples: stride 1 -> 0, stride 2 -> 1, stride -2 -> -3
+        stride_adjustment = stride_ - stride_.sign()
+        
+        # Calculate dimension multiplier based on stride adjustment
+        # Examples: stride 2 -> 1/2 (downsampling), stride -2 -> 2 (upsampling)
+        dim_multiplier = 2.0 ** (-stride_adjustment.sum().item())
+        
+        output_channels = self.channels[-1]
+        output_depth = int(dim_multiplier * input_depth)
+        output_height = int(dim_multiplier * input_height)
+        output_width = int(dim_multiplier * input_width)
+        
+        return (output_channels, output_depth, output_height, output_width)
 
