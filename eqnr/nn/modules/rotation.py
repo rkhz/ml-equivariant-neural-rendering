@@ -78,7 +78,7 @@ class Rotate3d(torch.nn.Module):
             the input volume is expanded to match the number of target views.
         """
         if self.training:
-            if self._pairwise_swap_indices is None:
+            if self._pairwise_swap_indices is None or len(self._pairwise_swap_indices) != volume.shape[0]:
                 self._pairwise_swap_indices = [idx^1 for idx in range(volume.shape[0])]
             return self._train_forward(volume, kwargs['azimuth'], kwargs['elevation'])
         else:

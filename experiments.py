@@ -4,7 +4,7 @@ import sys
 import time
 import torch
 
-from models.neural_renderer import NeuralRenderer
+from eqnr.nn.models.neural_renderer import NeuralRenderer
 
 from utils.trainer import Trainer
 from utils.dataloaders import scene_render_dataloader

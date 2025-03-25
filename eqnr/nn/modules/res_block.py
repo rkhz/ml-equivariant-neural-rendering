@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from eqnr.nn.functional import get_num_groups
+from eqnr.nn.modules.utils import get_num_groups
 
 
 class ResBlock2d(nn.Module):

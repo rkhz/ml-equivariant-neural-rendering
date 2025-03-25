@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
-from eqnr.nn import SphericalMask, Rotate3d, InverseProjection, Projection
-from models.submodels import ResNet2d, ResNet3d
+from eqnr.nn.modules import SphericalMask, Rotate3d, InverseProjection, Projection
+from eqnr.nn.models.submodels import ResNet2d, ResNet3d
 
 
 class NeuralRenderer(nn.Module):

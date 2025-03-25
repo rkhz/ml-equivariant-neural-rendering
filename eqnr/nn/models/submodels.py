@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from eqnr.nn.functional import get_num_groups
-from eqnr.nn import ResBlock2d, ResBlock3d
+from eqnr.nn.modules.utils import get_num_groups
+from eqnr.nn.modules import ResBlock2d, ResBlock3d
 
 class ResNet2d(nn.Module):
     """ResNets for 2d inputs.
