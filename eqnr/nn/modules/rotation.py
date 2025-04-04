@@ -78,8 +78,6 @@ class Rotate3d(torch.nn.Module):
             the input volume is expanded to match the number of target views.
         """
         if self.training:
-            if self._pairwise_swap_indices is None or len(self._pairwise_swap_indices) != volume.shape[0]:
-                self._pairwise_swap_indices = [idx^1 for idx in range(volume.shape[0])]
             return self._train_forward(volume, kwargs['azimuth'], kwargs['elevation'])
         else:
             return self._eval_forward(volume, **kwargs)
@@ -110,6 +108,9 @@ class Rotate3d(torch.nn.Module):
         Returns:
             torch.Tensor: The rotated and swapped volume with the same shape as input.
         """
+        if self._pairwise_swap_indices is None or len(self._pairwise_swap_indices) != volume.shape[0]:
+                self._pairwise_swap_indices = [idx^1 for idx in range(volume.shape[0])]
+                
         # Create rotation matrices that transform each scene to its pair's viewpoint
         rotation_matrix = eqnr_F.rotation_matrix_source_to_target(
             azimuth, elevation, self._pairwise_swap(azimuth), self._pairwise_swap(elevation)
@@ -147,7 +148,16 @@ class Rotate3d(torch.nn.Module):
         Raises:
             ValueError: If neither rotation_matrix nor all four angle parameters are provided.
         """
-        
+        if all(parm in kwargs for parm in ['azimuth','elevation']):
+            if self._pairwise_swap_indices is None or len(self._pairwise_swap_indices) != volume.shape[0]:
+                self._pairwise_swap_indices = [idx^1 for idx in range(volume.shape[0])]
+            rotation_matrix = eqnr_F.rotation_matrix_source_to_target(
+                kwargs['azimuth'], kwargs['elevation'], self._pairwise_swap(kwargs['azimuth']), self._pairwise_swap(kwargs['elevation'])
+            )
+            return  self._pairwise_swap(
+                eqnr_F.rotate3d(volume, rotation_matrix, mode=self.mode)
+            )
+            
         if 'rotation_matrix' in kwargs and kwargs['rotation_matrix'] is not None:
             return eqnr_F.rotate3d(volume, kwargs['rotation_matrix'], mode=self.mode)
         
@@ -158,7 +168,6 @@ class Rotate3d(torch.nn.Module):
                 kwargs['azimuth_source'], kwargs['elevation_source'],
                 kwargs['azimuth_target'], kwargs['elevation_target']
             )
-            
             # Check if we are generating new views
             if kwargs['azimuth_source'].shape[0] != kwargs['azimuth_target'].shape[0]:
                 num_views = kwargs['azimuth_target'].shape[0]

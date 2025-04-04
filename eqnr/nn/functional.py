@@ -111,6 +111,32 @@ def _rotation_matrix_camera_to_world(
     return (_rotation_matrix_y(-azimuth) @ _rotation_matrix_z(-elevation)).mT
 
 
+def _rotation_matrix_x(
+    angle_degrees: Union[torch.Tensor, float]
+) -> torch.Tensor:
+    """
+    Create a 3D rotation matrix for rotation around the X-axis.
+    
+    Args:
+        angle_degrees (torch.Tensor or float): Angle(s) in degrees of shape (batch_size,) or (1,).
+        
+    Returns:
+        torch.Tensor: A rotation matrix of shape (batch_size, 3, 3) or (1, 3, 3).
+    """
+    angle = torch.deg2rad(angle_degrees)
+    
+    cos_ = torch.cos(angle)
+    sin_ = torch.sin(angle)
+    
+    rotation_matrix = torch.zeros((*angle.shape, 3, 3), dtype=torch.float32, device=angle.device)
+
+    rotation_matrix[:, 0, 0] =  1.0
+    rotation_matrix[:, 1, 1] =  cos_
+    rotation_matrix[:, 1, 2] = -sin_
+    rotation_matrix[:, 2, 1] =  sin_
+    rotation_matrix[:, 2, 2] =  cos_
+    return rotation_matrix
+
 def _rotation_matrix_y(
     angle_degrees: Union[torch.Tensor, float]
 ) -> torch.Tensor:

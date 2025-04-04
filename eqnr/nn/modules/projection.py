@@ -1,111 +1,76 @@
 import torch.nn as nn
-from eqnr.nn.modules.utils import get_num_groups
+import einops.layers.torch as einops_nn
+
+from .conv_block import ConvBlock2d, ConvBlock3d
 
 __all__ = [
-    "Projection",
-    "InverseProjection"
+    "Project2DTo3D",
+    "Project3DTo2D"
 ]
 
-class Projection(nn.Module):
-    """Performs a projection from a 3D voxel-like feature map to a 2D image-like
-    feature map.
 
-    Args:
-        input_shape (tuple of ints): Shape of 3D input, (channels, depth,
-            height, width).
-        num_channels (tuple of ints): Number of channels in each layer of the
-            projection unit.
-
+class Project2DTo3D(nn.Module):
+    """
     Notes:
         This layer is inspired by the Projection Unit from
         https://arxiv.org/abs/1806.06575.
     """
-    def __init__(self, input_shape, num_channels):
-        super(Projection, self).__init__()
-        self.input_shape = input_shape
-        self.num_channels = num_channels
-        self.output_shape = (num_channels[-1],) + input_shape[2:]
-        # Number of input channels for first 2D convolution is
-        # channels * depth since we flatten the 3D input
-        in_channels = self.input_shape[0] * self.input_shape[1]
-        # Initialize forward pass layers
-        forward_layers = []
-        num_layers = len(num_channels)
-        for i in range(num_layers):
-            out_channels = num_channels[i]
-            forward_layers.append(
-                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1)
-            )
-            # Add non linearites, except for last layer
-            if i != num_layers - 1:
-                forward_layers.append(nn.GroupNorm(get_num_groups(out_channels), out_channels))
-                forward_layers.append(nn.LeakyReLU(0.2, True))
-            in_channels = out_channels
-        # Set up forward layers as model
-        self.forward_layers = nn.Sequential(*forward_layers)
+    def __init__(
+        self, 
+        in_channels: int, 
+        out_channels: int, 
+        pre_activation: bool=True, 
+        device=None
+    ) -> None:
+        super(Project2DTo3D, self).__init__()
+        super().__init__()
+        
+        self.device = device
+        self.in_channels= in_channels 
+        self.out_channels = out_channels  #128
+        
+        self.layers = nn.Sequential(
+            ConvBlock2d(self.in_channels, 256, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),
+            ConvBlock2d(256, 512, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),
+            ConvBlock2d(512,1024, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),
+            einops_nn.Rearrange('b (c d) h w -> b c d h w', c=self.out_channels),
+            ConvBlock3d(self.out_channels, self.out_channels, kernel_size=3, stride=1, padding=1, pre_activation=pre_activation),
+        )
 
-    def forward(self, inputs):
-        """Reshapes inputs from 3D -> 2D and applies 1x1 convolutions.
-
-        Args:
-            inputs (torch.Tensor): Voxel like tensor, with shape (batch_size,
-                channels, depth, height, width).
-        """
-        batch_size, channels, depth, height, width = inputs.shape
-        # Reshape 3D -> 2D
-        reshaped = inputs.view(batch_size, channels * depth, height, width)
-        # 1x1 conv layers
-        return self.forward_layers(reshaped)
+    def forward(self, x):
+        return self.layers(x)
 
 
-class InverseProjection(nn.Module):
-    """Performs an inverse projection from a 2D feature map to a 3D feature map.
 
-    Args:
-        input_shape (tuple of ints): Shape of 2D input, (channels, height, width).
-        num_channels (tuple of ints): Number of channels in each layer of the
-            projection unit.
-
-    Note:
-        The depth will be equal to the height and width of the input map.
-        Therefore, the final number of channels must be divisible by the height
-        and width of the input.
+class Project3DTo2D(nn.Module):
     """
-    def __init__(self, input_shape, num_channels):
-        super(InverseProjection, self).__init__()
-        self.input_shape = input_shape
-        self.num_channels = num_channels
-        assert num_channels[-1] % input_shape[-1] == 0, "Number of output channels is {} which is not divisible by " \
-                                                        "width {} of image".format(num_channels[-1], input_shape[-1])
-        self.output_shape = (num_channels[-1] // input_shape[-1], input_shape[-1]) + input_shape[1:]
+    Notes:
+        This layer is inspired by the Projection Unit from
+        https://arxiv.org/abs/1806.06575.
+    """
+    def __init__(
+        self, 
+        in_channels: int, 
+        out_channels: int, 
+        pre_activation: bool=True, 
+        device=None
+    ) -> None:
+        super(Project3DTo2D, self).__init__()
+        super().__init__()
+        
+        self.device = device
+        self.in_channels= in_channels 
+        self.out_channels = out_channels  #128
+        
+        self.layers = nn.Sequential(
+            ConvBlock3d(self.in_channels, self.in_channels, kernel_size=3, stride=1, padding=1, pre_activation=pre_activation),
+            einops_nn.Rearrange('b c d h w -> b (c d) h w', c=self.in_channels),
+            ConvBlock2d(1024, 512, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),   # same as doing Conv actually 
+            ConvBlock2d( 512, 256, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),   # same as doing Conv actually 
+            ConvBlock2d( 256, 128, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation)    # same as doing Conv actually 
+        )
 
-        # Initialize forward pass layers
-        in_channels = self.input_shape[0]
-        forward_layers = []
-        num_layers = len(num_channels)
-        for i in range(num_layers):
-            out_channels = num_channels[i]
-            forward_layers.append(
-                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1,
-                          padding=0)
-            )
-            # Add non linearites, except for last layer
-            if i != num_layers - 1:
-                forward_layers.append(nn.GroupNorm(get_num_groups(out_channels), out_channels))
-                forward_layers.append(nn.LeakyReLU(0.2, True))
-            in_channels = out_channels
-        # Set up forward layers as model
-        self.forward_layers = nn.Sequential(*forward_layers)
+    def forward(self, x):
+        return self.layers(x)
 
-    def forward(self, inputs):
-        """Applies convolutions and reshapes outputs from 2D -> 3D.
-
-        Args:
-            inputs (torch.Tensor): Image like tensor, with shape (batch_size,
-                channels, height, width).
-        """
-        # 1x1 conv layers
-        features = self.forward_layers(inputs)
-        # Reshape 3D -> 2D
-        batch_size = inputs.shape[0]
-        return features.view(batch_size, *self.output_shape)
+    

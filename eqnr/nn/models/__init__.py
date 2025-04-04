@@ -1,9 +1,11 @@
+from .encoder import Encode2d, Encode3d
+from .decoder import Decode2d, Decode3d
 from .neural_renderer import NeuralRenderer
-from .submodels import ResNet2d, ResNet3d
-
 
 __all__ = [
-    "NeuralRenderer",
-    "ResNet2d",
-    "ResNet3d"
+    "Encode2d",
+    "Encode3d",
+    "Decode2d",
+    "Decode3d",
+    "NeuralRenderer"
 ]
