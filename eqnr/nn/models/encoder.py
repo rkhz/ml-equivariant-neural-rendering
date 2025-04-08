@@ -25,46 +25,41 @@ class _EncodeNd(nn.Module):
         self.in_channels= in_channels 
         self.out_channels = out_channels  #128
         self.dim = dim
-        
-        #_Conv = {2: nn.Conv2d, 3: nn.Conv3d}[self.dim]
-
-        _ResBlock = {2: ResBlock2d, 3: ResBlock3d}[self.dim]
-        _ConvBlock = {2: ConvBlock2d, 3: ConvBlock3d}[self.dim]
-        _ConvTransposeBlock = {2:  ConvTransposeBlock2d, 3:  ConvTransposeBlock3d}[self.dim]
-        
 
         if dim == 2:
             self.layers = nn.Sequential(
-                _ConvBlock(self.in_channels, 64, kernel_size=1, stride=1, padding=0, pre_activation=False),
+                ConvBlock2d(self.in_channels, 64, kernel_size=1, stride=1, padding=0, pre_activation=False),
 
-                _ResBlock(64, 64, pre_activation=pre_activation),
-                _ResBlock(64, 64, pre_activation=pre_activation),
-                _ConvBlock(64, 128, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
+                ResBlock2d(64, 64, pre_activation=pre_activation),
+                ResBlock2d(64, 64, pre_activation=pre_activation),
+                ConvBlock2d(64, 128, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
 
-                _ResBlock(128, 128, pre_activation=pre_activation),
-                _ConvBlock(128, 128, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
+                ResBlock2d(128, 128, pre_activation=pre_activation),
+                ConvBlock2d(128, 128, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
 
-                _ResBlock(128, 128, pre_activation=pre_activation),
-                _ConvBlock(128, 256, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
+                ResBlock2d(128, 128, pre_activation=pre_activation),
+                ConvBlock2d(128, 256, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
                 
-                _ResBlock(256, 256, pre_activation=pre_activation),
-                _ConvTransposeBlock(256, 128, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
+                ResBlock2d(256, 256, pre_activation=pre_activation),
+                ConvTransposeBlock2d(256, 128, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
 
-                _ResBlock(128, 128, pre_activation=pre_activation),
-                _ResBlock(128, self.out_channels, pre_activation=pre_activation)
+                ResBlock2d(128, 128, pre_activation=pre_activation),
+                ResBlock2d(128, self.out_channels, pre_activation=pre_activation)
             ).to(self.device)
         else: # dim == 3
              self.layers = nn.Sequential(
-                _ResBlock(self.in_channels, 32, pre_activation=pre_activation),
-                _ResBlock(32, 32, pre_activation=pre_activation),
-                _ConvBlock(32, 128, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
+                ConvBlock3d(self.in_channels, 32, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),
                 
-                _ResBlock(128, 128, pre_activation=pre_activation),
-                _ResBlock(128, 128, pre_activation=pre_activation),
-                _ConvTransposeBlock(128, 64, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
+                ResBlock3d(32, 32, pre_activation=pre_activation),
+                ResBlock3d(32, 32, pre_activation=pre_activation),
+                ConvBlock3d(32, 128, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
+                
+                ResBlock3d(128, 128, pre_activation=pre_activation),
+                ResBlock3d(128, 128, pre_activation=pre_activation),
+                ConvTransposeBlock3d(128, 64, kernel_size=4, stride=2, padding=1, pre_activation=pre_activation),
 
-                _ResBlock(64, 64, pre_activation=pre_activation),
-                _ResBlock(64, self.out_channels, pre_activation=pre_activation)
+                ResBlock3d(64, 64, pre_activation=pre_activation),
+                ResBlock3d(64, self.out_channels, pre_activation=pre_activation)
              )
             
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:

@@ -34,7 +34,6 @@ class Project2DTo3D(nn.Module):
             ConvBlock2d(256, 512, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),
             ConvBlock2d(512,1024, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),
             einops_nn.Rearrange('b (c d) h w -> b c d h w', c=self.out_channels),
-            ConvBlock3d(self.out_channels, self.out_channels, kernel_size=3, stride=1, padding=1, pre_activation=pre_activation),
         )
 
     def forward(self, x):
@@ -63,7 +62,6 @@ class Project3DTo2D(nn.Module):
         self.out_channels = out_channels  #128
         
         self.layers = nn.Sequential(
-            ConvBlock3d(self.in_channels, self.in_channels, kernel_size=3, stride=1, padding=1, pre_activation=pre_activation),
             einops_nn.Rearrange('b c d h w -> b (c d) h w', c=self.in_channels),
             ConvBlock2d(1024, 512, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),   # same as doing Conv actually 
             ConvBlock2d( 512, 256, kernel_size=1, stride=1, padding=0, pre_activation=pre_activation),   # same as doing Conv actually 
@@ -73,4 +71,22 @@ class Project3DTo2D(nn.Module):
     def forward(self, x):
         return self.layers(x)
 
+    
+# class _Reshape(nn.Module):
+#     def __init__(
+#         self, 
+#         final_channels: int,
+#         to_dim: int,
+#     ) -> None:
+#         super().__init__()
+        
+#         self.final_channels = final_channels 
+#         self.to_dim = to_dim
+    
+#     def forward(self, x):
+#         if self.to_dim == 3:
+#             return x.view(-1, self.final_channels, x.shape[1] // self.final_channels, x.shape[2], x.shape[3])
+#         else: # self.to_dim == 2
+#             #assert self.final_channels == x.shape[1] * x.shape[2]
+#             return x.view(-1, self.final_channels * x.shape[2], x.shape[3], x.shape[4])
     

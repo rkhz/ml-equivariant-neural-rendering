@@ -159,7 +159,7 @@ class _PreActResMapNd(nn.Module):
         self, 
         in_channels: int, 
         out_channels: int, 
-        bottleneck_factor: Optional[float]=1/4, 
+        bottleneck_factor: Optional[float]=1, 
         dim: int=None,
         device=None
     ) -> None:
@@ -218,7 +218,7 @@ class _ResMapNd(nn.Module):
         self, 
         in_channels: int, 
         out_channels: int, 
-        bottleneck_factor: Optional[float]=1/4, 
+        bottleneck_factor: Optional[float]=1, 
         dim: int=None,
         device=None
     ) -> None:
